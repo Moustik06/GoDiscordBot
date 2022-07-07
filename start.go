@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/patrickmn/go-cache"
 	"log"
 	"os"
 	"os/signal"
@@ -9,13 +10,13 @@ import (
 	"strings"
 	"syscall"
 
-	//"time"
+	// "time"
 	"github.com/bwmarrin/discordgo"
-	//"github.com/patrickmn/go-cache"
 )
 
 var (
 	UserID = make(map[string]int)
+	c      *cache.Cache
 )
 
 func ConnectToDiscord() {
@@ -35,11 +36,12 @@ func ConnectToDiscord() {
 	log.Println("Lancement du bot")
 	discord.UpdateGameStatus(0, "Use ! for commands")
 
+	defer discord.Close()
+
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
 
-	discord.Close()
 }
 
 func messageCreate(session *discordgo.Session, message *discordgo.MessageCreate) {
@@ -47,19 +49,17 @@ func messageCreate(session *discordgo.Session, message *discordgo.MessageCreate)
 		return
 	}
 
-	UserID[message.Author.ID] += 1
+	UserID[message.Author.ID]++
 
-	if message.Content == "test" {
+	switch message.Content {
+	case "test":
 		session.ChannelMessageSend(message.ChannelID, "Accepté")
 
-	}
-
-	if message.Content == "score" {
+	case "score":
 		score := UserID[message.Author.ID]
 		session.ChannelMessageSend(message.ChannelID, "Votre score est de : "+strconv.Itoa(score))
-	}
 
-	if message.Content == "leaderboard" {
+	case "leaderboard":
 		trieClassement(UserID, session, message)
 	}
 
@@ -98,7 +98,6 @@ func fetchInfoFromUser(s *discordgo.Session, m *discordgo.MessageCreate, u strin
 	}
 
 	s.ChannelMessageSend(m.ChannelID, "Username : "+user.Username+"\n"+"Discriminator : "+user.Discriminator+"\n"+user.AvatarURL("1024")+"\n"+user.BannerURL("1024"))
-
 }
 
 /*func leaderboardJour(s *discordgo.Session, m *discordgo.MessageCreate){
