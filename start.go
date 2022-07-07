@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/patrickmn/go-cache"
 	"log"
 	"os"
 	"os/signal"
@@ -9,17 +8,37 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
-	// "time"
 	"github.com/bwmarrin/discordgo"
+	"github.com/patrickmn/go-cache"
 )
 
 var (
 	UserID = make(map[string]int)
 	c      *cache.Cache
+	defaultExpiration = time.Second * 5
 )
 
+func cacheUser(){	
+	c.Set("UserID", UserID, defaultExpiration)
+	foo,found := c.Get("UserID")
+	if found{
+		log.Println(foo)
+	}
+}
+func cacheExpired(user *map[string]int){
+	foo,found := c.Get("UserID")
+		if !found || foo == nil{
+			log.Println("Vide du cache")
+			c.Delete("UserID")
+			UserID = make(map[string]int)
+			c.Set("UserID", user, defaultExpiration)
+		}
+} 
 func ConnectToDiscord() {
+
+	cacheUser()
 	discord, err := discordgo.New("Bot " + os.Getenv("TOKEN"))
 	if err != nil {
 		log.Panic("Erreur pendant la création de session")
@@ -54,6 +73,7 @@ func messageCreate(session *discordgo.Session, message *discordgo.MessageCreate)
 	switch message.Content {
 	case "test":
 		session.ChannelMessageSend(message.ChannelID, "Accepté")
+		cacheExpired(&UserID)
 
 	case "score":
 		score := UserID[message.Author.ID]
@@ -100,8 +120,8 @@ func fetchInfoFromUser(s *discordgo.Session, m *discordgo.MessageCreate, u strin
 	s.ChannelMessageSend(m.ChannelID, "Username : "+user.Username+"\n"+"Discriminator : "+user.Discriminator+"\n"+user.AvatarURL("1024")+"\n"+user.BannerURL("1024"))
 }
 
-/*func leaderboardJour(s *discordgo.Session, m *discordgo.MessageCreate){
+/*func leaderboardJour(s *discordgo.Session, m *discordgo.MessageCreate,){
 	// On regarde le nombre de msg en 24h
-
+	
 
 }*/
