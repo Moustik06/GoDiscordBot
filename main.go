@@ -1,7 +1,5 @@
 package main
 
-const Token string = ""
-
-func main(){
+func main() {
 	ConnectToDiscord()
 }
