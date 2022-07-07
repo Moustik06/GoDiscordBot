@@ -15,13 +15,14 @@ import (
 )
 
 var (
-	UserID = make(map[string]int)
-	c      *cache.Cache
+	UserID 			  = make(map[string]int)
+	c      				*cache.Cache
 	defaultExpiration = time.Second * 5
 )
 
 func cacheUser(){	
 	c.Set("UserID", UserID, defaultExpiration)
+	
 	foo,found := c.Get("UserID")
 	if found{
 		log.Println(foo)
@@ -39,6 +40,7 @@ func cacheExpired(user *map[string]int){
 func ConnectToDiscord() {
 
 	cacheUser()
+	
 	discord, err := discordgo.New("Bot " + os.Getenv("TOKEN"))
 	if err != nil {
 		log.Panic("Erreur pendant la création de session")
@@ -72,8 +74,8 @@ func messageCreate(session *discordgo.Session, message *discordgo.MessageCreate)
 
 	switch message.Content {
 	case "test":
-		session.ChannelMessageSend(message.ChannelID, "Accepté")
-		cacheExpired(&UserID)
+		//cacheExpired(&UserID)
+		leaderboardJour(session,message)
 
 	case "score":
 		score := UserID[message.Author.ID]
@@ -88,7 +90,8 @@ func messageCreate(session *discordgo.Session, message *discordgo.MessageCreate)
 	}
 }
 
-func trieClassement(dico map[string]int, s *discordgo.Session, m *discordgo.MessageCreate) {
+func trieClassement(dico map[string]int, s *discordgo.Session, m *discordgo.MessageCreate) string{
+	var tmp string
 	keys := make([]string, 0, len(dico))
 	for key := range dico {
 		keys = append(keys, key)
@@ -103,10 +106,14 @@ func trieClassement(dico map[string]int, s *discordgo.Session, m *discordgo.Mess
 		User, err := s.User(k)
 		if err != nil {
 			log.Panic("Erreur de récupération")
-			return
+		}
+		if len(strings.Split(tmp, "$")) <=4{
+			tmp = tmp + "$" + User.Username + " " + strconv.Itoa(dico[k])
 		}
 		s.ChannelMessageSend(m.ChannelID, "Le score de "+User.Username+" est de "+strconv.Itoa(dico[k]))
 	}
+	
+	return tmp
 }
 
 func fetchInfoFromUser(s *discordgo.Session, m *discordgo.MessageCreate, u string) {
@@ -120,8 +127,17 @@ func fetchInfoFromUser(s *discordgo.Session, m *discordgo.MessageCreate, u strin
 	s.ChannelMessageSend(m.ChannelID, "Username : "+user.Username+"\n"+"Discriminator : "+user.Discriminator+"\n"+user.AvatarURL("1024")+"\n"+user.BannerURL("1024"))
 }
 
-/*func leaderboardJour(s *discordgo.Session, m *discordgo.MessageCreate,){
-	// On regarde le nombre de msg en 24h
-	
+func leaderboardJour(s *discordgo.Session, m *discordgo.MessageCreate){
+	tmp := trieClassement(UserID,s,m)
+	test := strings.Split(tmp,"$")
+	embed := new(discordgo.MessageEmbed)
+	embed.Title = "Classement des 5 meilleurs du jour !"
+	embed.Type = "rich"
 
-}*/
+	for i,j := range test {
+		log.Println(j)
+		embed.Description += strconv.Itoa(i) + " - " + j + "\n"
+	}
+	s.ChannelMessageSendEmbed(m.ChannelID,embed)
+}
+
