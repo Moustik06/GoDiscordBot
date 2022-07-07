@@ -17,7 +17,7 @@ import (
 var (
 	UserID 			  = make(map[string]int)
 	c      				*cache.Cache
-	defaultExpiration = time.Second * 5
+	defaultExpiration = time.Hour * 24
 )
 
 func cacheUser(){	
@@ -58,7 +58,7 @@ func ConnectToDiscord() {
 	discord.UpdateGameStatus(0, "Use ! for commands")
 
 	defer discord.Close()
-
+	
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
@@ -70,8 +70,9 @@ func messageCreate(session *discordgo.Session, message *discordgo.MessageCreate)
 		return
 	}
 
+	time.AfterFunc(time.Duration(30)*time.Second, func() {leaderboardJour(session,message)})
+	
 	UserID[message.Author.ID]++
-
 	switch message.Content {
 	case "test":
 		//cacheExpired(&UserID)
@@ -110,7 +111,7 @@ func trieClassement(dico map[string]int, s *discordgo.Session, m *discordgo.Mess
 		if len(strings.Split(tmp, "$")) <=4{
 			tmp = tmp + "$" + User.Username + " " + strconv.Itoa(dico[k])
 		}
-		s.ChannelMessageSend(m.ChannelID, "Le score de "+User.Username+" est de "+strconv.Itoa(dico[k]))
+		//s.ChannelMessageSend(m.ChannelID, "Le score de "+User.Username+" est de "+strconv.Itoa(dico[k]))
 	}
 	
 	return tmp
@@ -135,9 +136,10 @@ func leaderboardJour(s *discordgo.Session, m *discordgo.MessageCreate){
 	embed.Type = "rich"
 
 	for i,j := range test {
-		log.Println(j)
 		embed.Description += strconv.Itoa(i) + " - " + j + "\n"
 	}
 	s.ChannelMessageSendEmbed(m.ChannelID,embed)
+	cacheExpired(&UserID)
+	time.AfterFunc(time.Second*30, func() {leaderboardJour(s,m)})
 }
 

@@ -8,6 +8,7 @@ func main() {
 	InitCache()
 	ConnectToDiscord()
 }
+
 func InitCache() {
 	c = cache.New(cache.NoExpiration, cache.NoExpiration)
 }
